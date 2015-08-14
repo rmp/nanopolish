@@ -1,4 +1,11 @@
 #
+# package version & distribution type
+#
+MAJOR    ?= 0
+MINOR    ?= 0
+SUB      ?= 1
+PATCH    ?= 2
+CODENAME ?= $(shell lsb_release -cs)
 
 # Sub directories containing source code, except for the main programs
 SUBDIRS := src src/hmm src/thirdparty src/common src/alignment
@@ -108,4 +115,26 @@ test: $(TEST_PROGRAM)
 	./$(TEST_PROGRAM)
 
 clean:
-	rm nanopolish nanopolish_test $(CPP_OBJ) $(C_OBJ) src/main/nanopolish.o src/test/nanopolish_test.o
+	touch tmp
+	rm -rf nanopolish nanopolish_test $(CPP_OBJ) $(C_OBJ) src/main/nanopolish.o src/test/nanopolish_test.o tmp deb-src/DEBIAN/md5sums
+
+checksums: $(PROGRAM)
+	find . -type f ! -regex '.*deb-src.*' -exec openssl md5 -r {} \; | sed 's/\*.\///g' > deb-src/DEBIAN/md5sums
+
+deb: checksums
+	touch tmp
+	rm -rf tmp
+	mkdir -p tmp/opt/nanopolish/bin
+	rsync -va --exclude .svn deb-src/* tmp/
+	sed "s/MAJOR/$(MAJOR)/g" < tmp/DEBIAN/control.tmpl > tmp/DEBIAN/control.tmp
+	mv tmp/DEBIAN/control.tmp tmp/DEBIAN/control.tmpl
+	sed "s/MINOR/$(MINOR)/g" < tmp/DEBIAN/control.tmpl > tmp/DEBIAN/control.tmp
+	mv tmp/DEBIAN/control.tmp tmp/DEBIAN/control.tmpl
+	sed "s/PATCH/$(PATCH)/g" < tmp/DEBIAN/control.tmpl > tmp/DEBIAN/control.tmp
+	mv tmp/DEBIAN/control.tmp tmp/DEBIAN/control.tmpl
+	sed "s/SUB/$(SUB)/g" < tmp/DEBIAN/control.tmpl > tmp/DEBIAN/control.tmp
+	mv tmp/DEBIAN/control.tmp tmp/DEBIAN/control.tmpl
+	sed "s/CODENAME/$(CODENAME)/g" < tmp/DEBIAN/control.tmpl > tmp/DEBIAN/control
+	rsync -va $(PROGRAM) tmp/opt/nanopolish/bin/
+	rsync -va scripts tmp/opt/nanopolish/
+	(cd tmp; fakeroot dpkg -b . ../nanopolish-$(MAJOR).$(MINOR)-$(PATCH)~$(CODENAME).deb)

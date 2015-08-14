@@ -16,3 +16,5 @@ hdf5-*/
 include/
 lib/
 share/
+tmp/
+deb-src/DEBIAN/md5sums
